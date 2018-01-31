@@ -12,6 +12,6 @@ java_library(
     name = "jproducers-lib",
     srcs = glob(["*.java"]),
     deps = [
-        #"//third_party/guava",
+        "//third_party/guava",
     ],
 )

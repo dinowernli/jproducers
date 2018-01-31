@@ -35,3 +35,8 @@ maven_jar(
     artifact = "com.google.truth:truth:0.28",
 )
 
+maven_jar(
+    name = "com_google_guava",
+    artifact = "com.google.guava:guava:23.6-jre",
+)
+
