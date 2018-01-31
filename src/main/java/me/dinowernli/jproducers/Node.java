@@ -8,6 +8,7 @@ import com.google.inject.Key;
 import java.lang.reflect.Method;
 import java.util.Optional;
 
+/** Holds the execution state of a single producer in a specific graph execution. */
 public class Node<T> {
   private final Optional<Method> producer;
   private final ImmutableList<Key<?>> dependencies;

@@ -3,6 +3,7 @@ package me.dinowernli.jproducers;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
+/** Holds the result of a terminated future, i.e., either a value or an error. */
 public class Present<T> {
   private final Optional<T> value;
   private final Optional<Throwable> error;

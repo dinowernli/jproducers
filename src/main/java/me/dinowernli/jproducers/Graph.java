@@ -8,6 +8,7 @@ import com.google.inject.Key;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 
+/** Represents a single execution of a graph for a specific output type. */
 public class Graph<T> {
   private final ExecutorService executor;
   private final HashMap<Key<?>, Node<?>> nodes;
@@ -29,13 +30,14 @@ public class Graph<T> {
 
   private <O> ListenableFuture<O> processNode(Node<O> node) {
     for (Key<?> dependencyKey : node.dependencies()) {
-      final Node<?> dependencyNode = nodes.get(dependencyKey);
+      Node<?> dependencyNode = nodes.get(dependencyKey);
       ListenableFuture<?> dependencyValue = processNode(dependencyNode);
-      dependencyValue.addListener(() -> onDependencyDone(dependencyNode), executor);
+      dependencyValue.addListener(() -> onDependencyDone(node), executor);
     }
     return node.value();
   }
 
+  /** Called whenever a dependency of the supplied node has finished executing. */
   private void onDependencyDone(Node<?> node) {
     ImmutableList<Key<?>> dependencies = node.dependencies();
 
