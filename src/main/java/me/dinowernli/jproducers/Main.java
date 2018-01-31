@@ -17,7 +17,7 @@ public class Main {
 
     ListenableFuture<String> result = graph.run();
     logger.info("Started graph");
-    
+
     logger.info("Result: " + result.get());
   }
 }
