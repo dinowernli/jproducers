@@ -5,5 +5,6 @@ java_library(
     licenses = ["permissive"],
     exports = [
         "@com_google_inject_guice//jar",
+        "@javax_inject//jar",
     ],
 )

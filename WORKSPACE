@@ -44,3 +44,8 @@ maven_jar(
     name = "com_google_inject_guice",
     artifact = "com.google.inject:guice:4.0",
 )
+
+maven_jar(
+    name = "javax_inject",
+    artifact = "javax.inject:javax.inject:1",
+)
