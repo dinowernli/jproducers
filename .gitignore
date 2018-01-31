@@ -1,0 +1,14 @@
+// Bazel stuff.
+bazel-*
+
+// Vim stuff.
+*swp
+
+// Intell-J
+out/
+.idea
+.settings
+project.iml
+
+// Mac
+.DS_Store
