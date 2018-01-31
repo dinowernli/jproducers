@@ -9,11 +9,11 @@ http_archive(
     ],
 )
 
-load("@io_bazel_rules_go//go:def.bzl", "go_repositories", "new_go_repository")
+load("@io_bazel_rules_go//go:def.bzl", "go_repositories", "go_repository")
 
 go_repositories()
 
-new_go_repository(
+go_repository(
     name = "org_golang_x_tools",
     commit = "3d92dd60033c312e3ae7cac319c792271cf67e37",
     importpath = "golang.org/x/tools",
@@ -40,3 +40,7 @@ maven_jar(
     artifact = "com.google.guava:guava:23.6-jre",
 )
 
+maven_jar(
+    name = "com_google_inject_guice",
+    artifact = "com.google.inject:guice:4.0",
+)

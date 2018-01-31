@@ -13,5 +13,6 @@ java_library(
     srcs = glob(["*.java"]),
     deps = [
         "//third_party/guava",
+        "//third_party/guice",
     ],
 )
