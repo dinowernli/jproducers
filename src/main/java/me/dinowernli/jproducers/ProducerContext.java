@@ -3,6 +3,7 @@ package me.dinowernli.jproducers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Key;
 import me.dinowernli.jproducers.Annotations.Produces;
 
@@ -20,7 +21,11 @@ public class ProducerContext {
 
   public static ProducerContext forClasses(Class<?>... classes) {
     // TODO(dino): Add a factory method which scans for all classes marked @ProducerModule.
-    return new ProducerContext(ImmutableList.copyOf(classes), Executors.newCachedThreadPool());
+    ExecutorService threadPool = Executors.newCachedThreadPool(
+        new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .build());
+    return new ProducerContext(ImmutableList.copyOf(classes), threadPool);
   }
 
   private ProducerContext(ImmutableList<Class<?>> classes, ExecutorService executor) {
@@ -101,6 +106,7 @@ public class ProducerContext {
             .filter(t -> !t.equals(Produces.class))
             .collect(ImmutableSet.toImmutableSet());
 
+    // TODO(dino): Implement this check properly.
     if (!parametrizedType.getTypeName().contains("Present")) {
       throw new IllegalArgumentException("Expected " + parametrizedType.getTypeName() + " to be a present");
     }

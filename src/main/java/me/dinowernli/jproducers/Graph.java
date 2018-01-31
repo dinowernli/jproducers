@@ -34,6 +34,10 @@ public class Graph<T> {
       ListenableFuture<?> dependencyValue = processNode(dependencyNode);
       dependencyValue.addListener(() -> onDependencyDone(node), executor);
     }
+
+    // Trigger this explicitly here for degenerate cases where there are no dependencies, etc.
+    onDependencyDone(node);
+
     return node.value();
   }
 
