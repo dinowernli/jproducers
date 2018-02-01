@@ -9,7 +9,10 @@ import com.google.inject.Key;
 import me.dinowernli.jproducers.Annotations.Produces;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -111,14 +114,15 @@ public class ProducerContext {
   private static Key<?> producerKeyForReturnType(Method method) {
     ImmutableSet<Class<? extends Annotation>> annotations =
         Arrays.stream(method.getDeclaredAnnotations())
+            .filter(ProducerContext::isBindingAnnotation)
             .map(Annotation::annotationType)
-            .filter(t -> !t.equals(Produces.class))
             .collect(ImmutableSet.toImmutableSet());
 
+    Type producedType = Types.extractProducedType(method);
     if (annotations.isEmpty()) {
-      return Key.get(method.getGenericReturnType());
+      return Key.get(producedType);
     } else if (annotations.size() == 1) {
-      return Key.get(method.getGenericReturnType(), annotations.iterator().next());
+      return Key.get(producedType, annotations.iterator().next());
     } else {
       throw new IllegalArgumentException(
           "Can only have one non-Produces annotation, but got multiple for method: " + method);
@@ -132,7 +136,7 @@ public class ProducerContext {
         .map(Annotation::annotationType)
         .collect(ImmutableSet.toImmutableSet());
 
-    // TODO(dino): Support futures and straight-up return types.
+    // TODO(dino): Support parameters which are not presents.
     if (!parametrizedType.getRawType().equals(Present.class)) {
       throw new IllegalArgumentException(
           "Expected " + parametrizedType.getTypeName() + " to be a Present");
