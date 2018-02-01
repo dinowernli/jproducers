@@ -8,6 +8,7 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import me.dinowernli.jproducers.Annotations.Produces;
+import me.dinowernli.jproducers.Annotations.ProducesIntoSet;
 import me.dinowernli.jproducers.ProducerContextTest.FutureFakeProducerModule.Bar;
 import me.dinowernli.junit.TestClass;
 import org.junit.Test;
@@ -97,6 +98,31 @@ public class ProducerContextTest {
   @Test(expected = ExecutionException.class)
   public void testFailure() throws Throwable {
     ProducerContext context = ProducerContext.createForTesting(FailingProducerModule.class);
+    ListenableFuture<Integer> result = context.newGraph(Integer.class).run();
+    assertThat(result.isDone()).isTrue();
+    result.get();
+  }
+
+  static class CollectionProducer {
+    @ProducesIntoSet
+    static String produceSomeString() {
+      return "foo";
+    }
+
+    @ProducesIntoSet
+    static ListenableFuture<String> produceOtherString() {
+      return Futures.immediateFuture("bar");
+    }
+
+    @Produces
+    static Integer produceCount(Present<ImmutableSet<String>> strings) throws Throwable {
+      return strings.get().size();
+    }
+  }
+
+  @Test
+  public void testCollectionProducer() throws Throwable {
+    ProducerContext context = ProducerContext.forClasses(CollectionProducer.class);
     ListenableFuture<Integer> result = context.newGraph(Integer.class).run();
     assertThat(result.isDone()).isTrue();
     result.get();
