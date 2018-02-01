@@ -1,8 +1,10 @@
 package me.dinowernli.jproducers;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
@@ -34,9 +36,23 @@ public class ProducerContext {
     return new ProducerContext(ImmutableList.copyOf(classes), threadPool);
   }
 
+  @VisibleForTesting
+  static ProducerContext createForTesting(Class<?>... classes) {
+    return new ProducerContext(
+        ImmutableList.copyOf(classes), MoreExecutors.newDirectExecutorService());
+  }
+
   private ProducerContext(ImmutableList<Class<?>> classes, ExecutorService executor) {
     this.executor = executor;
     this.producers = computeProducerMap(classes);
+  }
+
+  /**
+   * Returns a new {@link Graph} instance which can be used to produce a value for the supplied type
+   * with no annotations.
+   */
+  public <T> Graph<T> newGraph(Class<T> clazz) {
+    return newGraph(Key.get(clazz));
   }
 
   /**

@@ -19,6 +19,20 @@ go_repository(
     importpath = "golang.org/x/tools",
 )
 
+# Autotest
+http_archive(
+    name = "autotest",
+    strip_prefix = "bazel-junit-autotest-0.0.1",
+    urls = ["https://github.com/dinowernli/bazel-junit-autotest/archive/v0.0.1.zip"],
+)
+
+load("@autotest//bzl:autotest.bzl", "autotest_junit_repo")
+
+autotest_junit_repo(
+    autotest_workspace = "@autotest",
+    junit_jar = "//third_party/testing",
+)
+
 # Direct java deps
 maven_jar(
     name = "junit_artifact",
