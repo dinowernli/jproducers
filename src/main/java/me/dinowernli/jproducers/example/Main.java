@@ -16,12 +16,6 @@ public class Main {
   public static void main(String[] args) throws Throwable {
     setupLogging();
 
-    // TODO(dino):
-    // - Producers returning futures
-    // - Producing into sets and maps
-    // - Producing primitive types
-    // - Convenience methods for binding inputs to constants, futures, etc
-
     ProducerContext context = ProducerContext.forClasses(ExampleModule.class);
     logger.info("Created context, available keys:\n\t" + formatKeys(context.availableKeys()));
 
