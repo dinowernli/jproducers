@@ -53,7 +53,10 @@ public class ExampleModule {
 
   @Produces
   public static ListenableFuture<Long> produceLong() {
-    return executor.submit(() -> 1234L);
+    return executor.submit(() -> {
+      Thread.sleep(1000);  // Thinking....
+      return 1234L;
+    });
   }
 
   @Produces

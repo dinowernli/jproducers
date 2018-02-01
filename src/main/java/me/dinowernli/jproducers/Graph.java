@@ -1,8 +1,6 @@
 package me.dinowernli.jproducers;
 
-
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Key;
@@ -57,6 +55,11 @@ public class Graph<T> {
     return (ListenableFuture<T>) processNode(nodes.get(outputKey));
   }
 
+  /**
+   * Recursively kicks off execution of all required nodes for the supplied node and wires up the
+   * callbacks that make sure that results are propagated back to the supplied node. Returns a
+   * future which tracks the execution progress of the supplied node itself.
+   */
   private <O> ListenableFuture<O> processNode(Node<O> node) {
     for (Key<?> dependencyKey : node.dependencies()) {
       Node<?> dependencyNode = nodes.get(dependencyKey);
@@ -70,7 +73,9 @@ public class Graph<T> {
     return node.value();
   }
 
-  /** Called whenever a dependency of the supplied node has finished executing. */
+  /**
+   * Called whenever a dependency of the supplied node has finished executing.
+   */
   private void onDependencyDone(Node<?> node) {
     ImmutableList<Key<?>> dependencies = node.dependencies();
 
@@ -96,46 +101,12 @@ public class Graph<T> {
     }
 
     // Run the actual producer.
-    executor.submit(() -> {
-      Object output;
-      try {
-        output = node.producer().invoke(null /* receiver */, arguments);
-      } catch (Throwable t) {
-        node.acceptError(new RuntimeException("Unable to execute producer", t));
-        return;
-      }
-
-      // Propagate the output back to the node.
-      if (output instanceof ListenableFuture) {
-        ListenableFuture<?> outputFuture = (ListenableFuture<?>) output;
-        Futures.addCallback(outputFuture, new NodeFutureCallback(node), executor);
-      } else {
-        node.acceptValue(output);
-      }
-    });
+    executor.submit(() -> node.execute(arguments));
   }
 
   private static HashMap<Key<?>, Boolean> createExplicitInputMap(Set<Key<?>> explicitInputs) {
     HashMap<Key<?>, Boolean> result = new HashMap<>();
     explicitInputs.forEach(k -> result.put(k, false));
     return result;
-  }
-
-  private static class NodeFutureCallback implements FutureCallback<Object> {
-    private final Node<?> node;
-
-    private <T> NodeFutureCallback(Node<T> node) {
-      this.node = node;
-    }
-
-    @Override
-    public void onSuccess(Object result) {
-      node.acceptValue(result);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-      node.acceptError(t);
-    }
   }
 }
