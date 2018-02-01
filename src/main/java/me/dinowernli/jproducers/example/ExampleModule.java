@@ -1,5 +1,6 @@
 package me.dinowernli.jproducers.example;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -60,12 +61,18 @@ public class ExampleModule {
   }
 
   @Produces
+  public static ImmutableList<String> produceWholeBunchOfString() {
+    return ImmutableList.of("woop", "woop");
+  }
+
+  @Produces
   public static String someString(
+      Present<ImmutableList<String>> strings,
       @Bar Present<String> bar,
       Present<Integer> number,
       Present<Long> asyncNumber,
       @Baz Present<Double> explicitNumber) throws ExecutionException {
-    return String.format("The numbers were: [%d, %f], bar: %s. Async number: %d",
-        number.get(), explicitNumber.get(), bar.get(), asyncNumber.get());
+    return String.format("The numbers were: [%d, %f], bar: %s. Async number: %d. Strings: %s",
+        number.get(), explicitNumber.get(), bar.get(), asyncNumber.get(), strings.get());
   }
 }
