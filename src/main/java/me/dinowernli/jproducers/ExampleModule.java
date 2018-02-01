@@ -19,8 +19,7 @@ public class ExampleModule {
   @interface Bar {}
 
   @Produces
-  public static Integer someNumber() {
-    // TODO(dino): Special-case primitive types so that the return type here can be "int".
+  public static int someNumber() {
     return 42;
   }
 
