@@ -2,30 +2,57 @@ package me.dinowernli.jproducers;
 
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Key;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 /** Represents a single execution of a graph for a specific output type. */
 public class Graph<T> {
   private final ExecutorService executor;
   private final HashMap<Key<?>, Node<?>> nodes;
+
+  /** Maps expected explicit input keys to whether an input has actually been provided. */
+  private final HashMap<Key<?>, Boolean> explicitInputs;
+
   private final Key<T> outputKey;
 
-  Graph(ExecutorService executor, HashMap<Key<?>, Node<?>> nodes, Key<T> outputKey) {
+  Graph(
+      ExecutorService executor,
+      HashMap<Key<?>, Node<?>> nodes,
+      Set<Key<?>> explicitInputs,
+      Key<T> outputKey) {
     this.executor = executor;
     this.nodes = nodes;
     this.outputKey = outputKey;
+    this.explicitInputs = createExplicitInputMap(explicitInputs);
   }
 
-  public <I> void addInput(Key<I> key, I value) {
+  public <I> Graph<T> addInput(Key<I> key, I value) {
+    if (!explicitInputs.containsKey(key)) {
+      throw new IllegalArgumentException("Attempted to bind unexpected input for key: " + key);
+    }
+    if (explicitInputs.get(key)) {
+      throw new IllegalArgumentException("Attempted to bind already-bound input for key: " + key);
+    }
+
+    explicitInputs.put(key, true);
     nodes.put(key, Node.createConstantNode(value));
+    return this;
   }
 
   /** Kicks off the execution of this graph. */
   public ListenableFuture<T> run() {
+    for (Map.Entry<Key<?>, Boolean> explicitInput : explicitInputs.entrySet()) {
+      if (!explicitInput.getValue()) {
+        return Futures.immediateFailedFuture(
+            new RuntimeException("Missing input for key: " + explicitInput.getKey()));
+      }
+    }
     return (ListenableFuture<T>) processNode(nodes.get(outputKey));
   }
 
@@ -75,5 +102,11 @@ public class Graph<T> {
         node.acceptError(new RuntimeException("Unable to execute producer", t));
       }
     });
+  }
+
+  private static HashMap<Key<?>, Boolean> createExplicitInputMap(Set<Key<?>> explicitInputs) {
+    HashMap<Key<?>, Boolean> result = new HashMap<>();
+    explicitInputs.forEach(k -> result.put(k, false));
+    return result;
   }
 }

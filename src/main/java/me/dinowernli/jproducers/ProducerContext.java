@@ -10,9 +10,7 @@ import me.dinowernli.jproducers.Annotations.Produces;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,8 +37,9 @@ public class ProducerContext {
    */
   public <T> Graph<T> newGraph(Key<T> key) {
     HashMap<Key<?>, Node<?>> nodes = new HashMap<>();
-    addDependencies(producers.get(key), nodes);
-    return new Graph<>(executor, nodes, key);
+    Set<Key<?>> explicitInputs = new HashSet<>();
+    addDependencies(producers.get(key), nodes, explicitInputs);
+    return new Graph<>(executor, nodes, explicitInputs, key);
   }
 
   /** Returns the set of keys for which graphs can be created. */
@@ -48,7 +47,15 @@ public class ProducerContext {
     return producers.keySet();
   }
 
-  private void addDependencies(Method producer, HashMap<Key<?>, Node<?>> dependencies) {
+  /**
+   * Recursively creates nodes for all transitive dependencies of the supplied producer. Note that
+   * this only applies to "computed" nodes, i.e., this does not include nodes for which inputs need
+   * are added manually.
+   */
+  private void addDependencies(
+      Method producer,
+      HashMap<Key<?>, Node<?>> dependencies,
+      Set<Key<?>> explicitInputs) {
     Key<?> currentKey = producerKeyForReturnType(producer);
     if (dependencies.containsKey(currentKey)) {
       return;
@@ -64,7 +71,12 @@ public class ProducerContext {
       dependencyKeys.add(dependencyKey);
 
       Method dependencyProducer = producers.get(dependencyKey);
-      addDependencies(dependencyProducer, dependencies);
+      if (dependencyProducer == null) {
+        // There is no known producer for this key, callers must provide it as input.
+        explicitInputs.add(dependencyKey);
+      } else {
+        addDependencies(dependencyProducer, dependencies, explicitInputs);
+      }
     }
 
     // Add the current node.

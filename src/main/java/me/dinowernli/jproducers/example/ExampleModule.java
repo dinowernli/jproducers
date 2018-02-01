@@ -19,6 +19,10 @@ public class ExampleModule {
   @BindingAnnotation
   @interface Bar {}
 
+  @Retention(RetentionPolicy.RUNTIME)
+  @BindingAnnotation
+  @interface Baz {}
+
   @Produces
   public static int someNumber() {
     return 42;
@@ -38,7 +42,10 @@ public class ExampleModule {
 
   @Produces
   public static String someString(
-      @Bar Present<String> bar, Present<Integer> number) throws ExecutionException {
-    return "The number was: " + number.get() + ", " + bar.get();
+      @Bar Present<String> bar,
+      Present<Integer> number,
+      @Baz Present<Double> explicitNumber) throws ExecutionException {
+    return String.format("The numbers were: [%d, %f], bar: %s",
+        number.get(), explicitNumber.get(), bar.get());
   }
 }

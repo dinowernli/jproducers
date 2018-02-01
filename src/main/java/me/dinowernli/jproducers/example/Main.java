@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Key;
 import me.dinowernli.jproducers.Graph;
 import me.dinowernli.jproducers.ProducerContext;
+import me.dinowernli.jproducers.example.ExampleModule.Baz;
 
 import java.util.logging.Logger;
 
@@ -27,7 +28,9 @@ public class Main {
     Graph<String> graph = context.newGraph(Key.get(String.class));
     logger.info("Created graph");
 
-    ListenableFuture<String> result = graph.run();
+    ListenableFuture<String> result = graph
+        .addInput(Key.get(Double.class, Baz.class), 1337.0)
+        .run();
     logger.info("Started graph");
 
     logger.info("Result: " + result.get());
