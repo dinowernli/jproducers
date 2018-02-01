@@ -9,17 +9,17 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 
 /** Holds the execution state of a single producer in a specific graph execution. */
-public class Node<T> {
+class Node<T> {
   private final Optional<Method> producer;
   private final ImmutableList<Key<?>> dependencies;
   private final SettableFuture<T> value;
 
-  public static <T> Node<T> createComputedNode(
+  static <T> Node<T> createComputedNode(
       Method producer, ImmutableList<Key<?>> dependencies) {
     return new Node<>(Optional.of(producer), dependencies);
   }
 
-  public static <T> Node<T> createConstantNode(T value) {
+  static <T> Node<T> createConstantNode(T value) {
     Node<T> result = new Node<>(Optional.empty(), ImmutableList.of() /* dependencies */);
     result.acceptValue(value);
     return result;
@@ -31,23 +31,23 @@ public class Node<T> {
     this.value = SettableFuture.create();
   }
 
-  public ListenableFuture<T> value() {
+  ListenableFuture<T> value() {
     return value;
   }
 
-  public ImmutableList<Key<?>> dependencies() {
+  ImmutableList<Key<?>> dependencies() {
     return dependencies;
   }
 
-  public Method producer() {
+  Method producer() {
     return producer.get();
   }
 
-  public void acceptValue(Object object) {
+  void acceptValue(Object object) {
     value.set((T) object);
   }
 
-  public void acceptError(Throwable error) {
+  void acceptError(Throwable error) {
     value.setException(error);
   }
 }

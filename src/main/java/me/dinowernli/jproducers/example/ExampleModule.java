@@ -1,8 +1,9 @@
-package me.dinowernli.jproducers;
+package me.dinowernli.jproducers.example;
 
 import com.google.inject.BindingAnnotation;
 import me.dinowernli.jproducers.Annotations.ProducerModule;
 import me.dinowernli.jproducers.Annotations.Produces;
+import me.dinowernli.jproducers.Present;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

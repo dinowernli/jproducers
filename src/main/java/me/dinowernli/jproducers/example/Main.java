@@ -1,9 +1,11 @@
-package me.dinowernli.jproducers;
+package me.dinowernli.jproducers.example;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Key;
+import me.dinowernli.jproducers.Graph;
+import me.dinowernli.jproducers.ProducerContext;
 
 import java.util.logging.Logger;
 

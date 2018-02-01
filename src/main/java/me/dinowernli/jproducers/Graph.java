@@ -14,7 +14,7 @@ public class Graph<T> {
   private final HashMap<Key<?>, Node<?>> nodes;
   private final Key<T> outputKey;
 
-  public Graph(ExecutorService executor, HashMap<Key<?>, Node<?>> nodes, Key<T> outputKey) {
+  Graph(ExecutorService executor, HashMap<Key<?>, Node<?>> nodes, Key<T> outputKey) {
     this.executor = executor;
     this.nodes = nodes;
     this.outputKey = outputKey;
@@ -24,6 +24,7 @@ public class Graph<T> {
     nodes.put(key, Node.createConstantNode(value));
   }
 
+  /** Kicks off the execution of this graph. */
   public ListenableFuture<T> run() {
     return (ListenableFuture<T>) processNode(nodes.get(outputKey));
   }
