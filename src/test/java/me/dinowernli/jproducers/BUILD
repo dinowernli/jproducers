@@ -7,6 +7,7 @@ auto_java_test(
     deps = [
         "//src/main/java/me/dinowernli/jproducers",
         "//third_party/guava",
+        "//third_party/guice",
         "//third_party/testing",
     ],
 )
