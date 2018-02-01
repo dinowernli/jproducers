@@ -16,11 +16,11 @@ public class Node<T> {
 
   public static <T> Node<T> createComputedNode(
       Method producer, ImmutableList<Key<?>> dependencies) {
-    return new Node<T>(Optional.of(producer), dependencies);
+    return new Node<>(Optional.of(producer), dependencies);
   }
 
-  public static <T> Node<T> createConstantNode(Key<T> key, T value) {
-    Node<T> result = new Node<T>(Optional.empty(), ImmutableList.of() /* dependencies */);
+  public static <T> Node<T> createConstantNode(T value) {
+    Node<T> result = new Node<>(Optional.empty(), ImmutableList.of() /* dependencies */);
     result.acceptValue(value);
     return result;
   }

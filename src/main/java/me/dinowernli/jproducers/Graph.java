@@ -21,7 +21,7 @@ public class Graph<T> {
   }
 
   public <I> void addInput(Key<I> key, I value) {
-    nodes.put(key, Node.createConstantNode(key, value));
+    nodes.put(key, Node.createConstantNode(value));
   }
 
   public ListenableFuture<T> run() {
