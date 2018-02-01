@@ -23,5 +23,6 @@ before_install:
 
 script:
   - ./src/tools/check-buildifier.sh
+  - bazel build //src/...
   - bazel test //src/...
 
