@@ -102,19 +102,43 @@ public class ProducerContext {
       }
     }
 
+
+
+
+
+
+    // TODO: plan:
+    // - make it possible to create constant nodes without their values
+    // - make addInput just set the future on the corresponding constant node
+    // - turn node into an interface
+    // - introduce special nodes which compute the aggregate into "set" and "map"
+    // - when setting up the graph, add a special case for set types which adds multiple nodes rather than just one
+
+
+
+    // Rationale: for output ImmutableSet<Foo>, cannot identify dependency nodes by key alone, must
+    // be node itself. also, constant nodes need to be able to feed into sets/maps
+
+
+
+
+
+
+
     // Add the current node.
-    dependencies.put(currentKey, Node.createComputedNode(producer, dependencyKeys.build()));
+    dependencies.put(
+        currentKey, Node.createComputedNode(currentKey, producer, dependencyKeys.build()));
   }
 
   private static ImmutableMap<Key<?>, Method> computeProducerMap(ImmutableList<Class<?>> classes) {
     Map<Key<?>, Method> producers = new HashMap<>();
     for (Class<?> clazz : classes) {
       for (Method method : clazz.getDeclaredMethods()) {
-        if (!method.isAnnotationPresent(Produces.class)) {
-          continue;
-        }
         if (!Modifier.isStatic(method.getModifiers())) {
           throw new IllegalArgumentException("Cannot have non-static producer: " + method);
+        }
+        if (!method.isAnnotationPresent(Produces.class)) {
+          continue;
         }
 
         Key<?> key = producerKeyForReturnType(method);

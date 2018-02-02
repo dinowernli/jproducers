@@ -40,7 +40,7 @@ public class Graph<T> {
     }
 
     explicitInputs.put(key, true);
-    nodes.put(key, Node.createConstantNode(value));
+    nodes.put(key, Node.createConstantNode(key, value));
     return this;
   }
 

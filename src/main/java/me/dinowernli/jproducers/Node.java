@@ -14,32 +14,47 @@ import java.util.Optional;
 
 /** Holds the execution state of a single producer in a specific graph execution. */
 class Node<T> {
+  private final Key<T> outputKey;
   private final Optional<Method> producer;
-  private final ImmutableList<Key<?>> dependencies;
+  private final ImmutableList<Node<?>> dependencies;
   private final SettableFuture<T> value;
 
   static <T> Node<T> createComputedNode(
-      Method producer, ImmutableList<Key<?>> dependencies) {
-    return new Node<>(Optional.of(producer), dependencies);
+      Key<T> outputKey, Method producer, ImmutableList<Node<?>> dependencies) {
+    return new Node<>(outputKey, Optional.of(producer), dependencies);
   }
 
-  static <T> Node<T> createConstantNode(T value) {
-    Node<T> result = new Node<>(Optional.empty(), ImmutableList.of() /* dependencies */);
+  static <T> Node<T> createConstantNode(Key<T> outputKey, T value) {
+    Node<T> result = new Node<>(outputKey, Optional.empty(), ImmutableList.of() /* dependencies */);
     result.acceptValue(value);
     return result;
   }
 
-  private Node(Optional<Method> producer, ImmutableList<Key<?>> dependencies) {
+  private Node(Key<T> outputKey, Optional<Method> producer, ImmutableList<Node<?>> dependencies) {
+    this.outputKey = outputKey;
     this.producer = producer;
     this.dependencies = dependencies;
     this.value = SettableFuture.create();
   }
 
+  /**
+   * Returns the key describing the output of this node.
+   */
+  Key<T> outputKey() {
+    return outputKey;
+  }
+
+  /**
+   * Returns a future which completes when this node has executed and produced a value.
+   */
   ListenableFuture<T> value() {
     return value;
   }
 
-  ImmutableList<Key<?>> dependencies() {
+  /**
+   * Returns the nodes which have to have completed before this node can run.
+   */
+  ImmutableList<Node<?>> dependencies() {
     return dependencies;
   }
 
