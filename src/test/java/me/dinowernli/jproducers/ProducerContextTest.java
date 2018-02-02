@@ -115,16 +115,18 @@ public class ProducerContextTest {
     }
 
     @Produces
-    static Integer produceCount(Present<ImmutableSet<String>> strings) throws Throwable {
-      return strings.get().size();
+    static ImmutableList<String> produceList(Present<ImmutableSet<String>> strings)
+        throws Throwable {
+      return ImmutableList.copyOf(strings.get());
     }
   }
 
   @Test
   public void testCollectionProducer() throws Throwable {
-    ProducerContext context = ProducerContext.forClasses(CollectionProducer.class);
-    ListenableFuture<Integer> result = context.newGraph(Integer.class).run();
+    ProducerContext context = ProducerContext.createForTesting(CollectionProducer.class);
+    ListenableFuture<ImmutableList<String>> result = context.newGraph(
+        Key.get(new TypeLiteral<ImmutableList<String>>() {})).run();
     assertThat(result.isDone()).isTrue();
-    result.get();
+    assertThat(result.get()).containsExactly("foo", "bar");
   }
 }

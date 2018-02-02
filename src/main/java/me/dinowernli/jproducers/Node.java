@@ -9,6 +9,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -28,21 +30,7 @@ class Node<T> {
   }
 
   static <T> Node<ImmutableSet<T>> createSetAssemblyNode(ImmutableList<Node<?>> dependencies) {
-    Method producer;
-    try {
-      producer = Node.class.getDeclaredMethod("produceSet");
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException("Unable to find set assembly producer", e);
-    }
-    return new Node<>(Optional.of(producer), dependencies);
-  }
-
-  public static <T> ImmutableSet<T> produceSet(Present<T>... values) throws ExecutionException {
-    ImmutableSet.Builder<T> resultBuilder = ImmutableSet.builder();
-    for (Present<T> value : values) {
-      resultBuilder.add(value.get());
-    }
-    return resultBuilder.build();
+    return new Node<>(Optional.of(SET_PRODUCER), dependencies);
   }
 
   private Node(Optional<Method> producer, ImmutableList<Node<?>> dependencies) {
@@ -76,7 +64,35 @@ class Node<T> {
   void execute(Object[] arguments) {
     Object output;
     try {
-      output = producer.get().invoke(null /* receiver */, arguments);
+      if (producer.get().equals(SET_PRODUCER)) {
+        // TODO(dino): Not exactly pretty...
+
+
+        // TODO: clean this up.
+
+
+
+
+
+
+
+        Present<String>[] presents = new Present[arguments.length];
+        for (int i = 0; i < arguments.length; ++i) {
+          presents[i] = (Present) arguments[i];
+        }
+
+        Object[] w = new Object[1];
+        w[0] = presents;
+
+        output = producer.get().invoke(null /* receiver */, w);
+      } else {
+        output = producer.get().invoke(null /* receiver */, arguments);
+      }
+
+
+//      output = producer.get().invoke(null /* receiver */, arguments);
+
+
     } catch (Throwable t) {
       acceptError(new RuntimeException("Unable to execute producer", t));
       return;
@@ -120,5 +136,28 @@ class Node<T> {
     public void onFailure(Throwable t) {
       node.acceptError(t);
     }
+  }
+
+  @Retention(RetentionPolicy.RUNTIME)
+  private @interface SetProducer {}
+
+  private static final Method SET_PRODUCER = setProducer();
+
+  private static Method setProducer() {
+    for (Method method : Node.class.getDeclaredMethods()) {
+      if (method.isAnnotationPresent(SetProducer.class)) {
+        return method;
+      }
+    }
+    throw new IllegalStateException("Could not find set producer method");
+  }
+
+  @SetProducer
+  public static <T> ImmutableSet<T> produceSet(Present<T>... values) throws ExecutionException {
+    ImmutableSet.Builder<T> resultBuilder = ImmutableSet.builder();
+    for (Present<T> value : values) {
+      resultBuilder.add(value.get());
+    }
+    return resultBuilder.build();
   }
 }

@@ -11,7 +11,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
-import com.google.inject.TypeLiteral;
 import me.dinowernli.jproducers.Annotations.Produces;
 import me.dinowernli.jproducers.Annotations.ProducesIntoSet;
 
@@ -96,6 +95,10 @@ public class ProducerContext {
       Method producer,
       HashMap<Key<?>, Node<?>> nodes,
       HashMap<Key<?>, Node<?>> explicitInputs) {
+
+    // TODO(dino): Change this signature to take a type rather than a producer. This method should
+    // add a node which outputs that type.
+
     Key<?> currentKey = producerKeyForReturnType(producer);
     if (nodes.containsKey(currentKey)) {
       return nodes.get(currentKey);
@@ -105,6 +108,7 @@ public class ProducerContext {
     ImmutableList.Builder<Node<?>> directDependencies = ImmutableList.builder();
     for (int i = 0; i < producer.getGenericParameterTypes().length; ++i) {
       ParameterizedType genericType = (ParameterizedType) producer.getGenericParameterTypes()[i];
+      Type presentType = genericType.getActualTypeArguments()[0];  // TODO(dino): support non-present.
       ImmutableList<Annotation> annotations =
           ImmutableList.copyOf(producer.getParameterAnnotations()[i]);
       Key<?> dependencyKey = producerKeyForParameterType(genericType, annotations);
@@ -118,10 +122,10 @@ public class ProducerContext {
       }
 
       // Try to resolve a bunch of producers which produce elements into this set.
-      TypeLiteral<?> dependencyType = dependencyKey.getTypeLiteral();
-      if (dependencyType.getRawType().equals(ImmutableSet.class)) {
+      if (presentType instanceof ParameterizedType
+          && ((ParameterizedType) presentType).getRawType().equals(ImmutableSet.class)) {
         // Construct a key for the individual elements.
-        Type elementType = genericType.getActualTypeArguments()[0];
+        Type elementType = ((ParameterizedType) presentType).getActualTypeArguments()[0];
         Key elementKey;
         if (dependencyKey.getAnnotation() == null) {
           elementKey = Key.get(elementType);
@@ -145,6 +149,7 @@ public class ProducerContext {
           Node<?> assemblyNode = Node.createSetAssemblyNode(elementNodes.build());
           nodes.put(dependencyKey, assemblyNode);
           directDependencies.add(assemblyNode);
+          continue;
         }
       }
 
@@ -181,12 +186,14 @@ public class ProducerContext {
                 existing.getName(), key, method.getName()));
           }
           producers.put(key, method);
+          continue;
         }
 
         // Check for set producer.
         if (method.isAnnotationPresent(ProducesIntoSet.class)) {
           Key<?> key = producerKeyForReturnType(method);
           setProducers.put(key, method);
+          continue;
         }
       }
     }
@@ -218,13 +225,14 @@ public class ProducerContext {
         .map(Annotation::annotationType)
         .collect(ImmutableSet.toImmutableSet());
 
+    // By taking type argument[0] below, we encode that all producer arguments must be presents.
     // TODO(dino): Support parameters which are not presents.
     if (!parametrizedType.getRawType().equals(Present.class)) {
       throw new IllegalArgumentException(
           "Expected " + parametrizedType.getTypeName() + " to be a Present");
     }
-
     Type presentType = parametrizedType.getActualTypeArguments()[0];
+
     if (annotationSet.isEmpty()) {
       return Key.get(presentType);
     } else if (annotationSet.size() == 1) {
