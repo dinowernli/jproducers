@@ -1,14 +1,19 @@
 package me.dinowernli.jproducers;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
 import me.dinowernli.jproducers.Annotations.Produces;
+import me.dinowernli.jproducers.Annotations.ProducesIntoSet;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -16,6 +21,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -25,7 +31,12 @@ import java.util.concurrent.Executors;
 
 public class ProducerContext {
   private final ExecutorService executor;
+
+  /** Holds all the available producer method which directly produced a specific key. */
   private final ImmutableMap<Key<?>, Method> producers;
+
+  /** Holds the producers which produce elements into a set for a given key type. */
+  private final ImmutableMultimap<Key<?>, Method> setProducers;
 
   public static ProducerContext forClasses(Class<?>... classes) {
     // TODO(dino): Add a factory method which scans for all classes marked @ProducerModule.
@@ -44,7 +55,13 @@ public class ProducerContext {
 
   private ProducerContext(ImmutableList<Class<?>> classes, ExecutorService executor) {
     this.executor = executor;
-    this.producers = computeProducerMap(classes);
+
+    HashMap<Key<?>, Method> producers = new HashMap<>();
+    HashMultimap<Key<?>, Method> setProducers = HashMultimap.create();
+    computeProducerMap(classes, producers, setProducers);
+
+    this.producers = ImmutableMap.copyOf(producers);
+    this.setProducers = ImmutableMultimap.copyOf(setProducers);
   }
 
   /**
@@ -60,8 +77,9 @@ public class ProducerContext {
    */
   public <T> Graph<T> newGraph(Key<T> key) {
     HashMap<Key<?>, Node<?>> nodes = new HashMap<>();
-    Set<Key<?>> explicitInputs = new HashSet<>();
-    addDependencies(producers.get(key), nodes, explicitInputs);
+    HashMap<Key<?>, Node<?>> explicitInputs = new HashMap<>();
+    addNode(producers.get(key), nodes, explicitInputs);
+
     return new Graph<>(executor, nodes, explicitInputs, key);
   }
 
@@ -71,87 +89,87 @@ public class ProducerContext {
   }
 
   /**
-   * Recursively creates nodes for all transitive dependencies of the supplied producer. Note that
-   * this only applies to "computed" nodes, i.e., this does not include nodes for which inputs need
-   * are added manually.
+   * Creates a node for the supplied producer and returns it.
+   *
+   * This method recursively creates nodes for all dependencies of the supplied producer and adds
+   * them to the "nodes" and "explicitInputs" maps.
    */
-  private void addDependencies(
+  private Node<?> addNode(
       Method producer,
-      HashMap<Key<?>, Node<?>> dependencies,
-      Set<Key<?>> explicitInputs) {
+      HashMap<Key<?>, Node<?>> nodes,
+      HashMap<Key<?>, Node<?>> explicitInputs) {
     Key<?> currentKey = producerKeyForReturnType(producer);
-    if (dependencies.containsKey(currentKey)) {
-      return;
+    if (nodes.containsKey(currentKey)) {
+      return nodes.get(currentKey);
     }
 
-    // Construct a node based on the dependencies.
-    ImmutableList.Builder<Key<?>> dependencyKeys = ImmutableList.builder();
+    // Resolve all the dependencies of this producer.
+    ImmutableList.Builder<Node<?>> directDependencies = ImmutableList.builder();
     for (int i = 0; i < producer.getGenericParameterTypes().length; ++i) {
       ParameterizedType genericType = (ParameterizedType) producer.getGenericParameterTypes()[i];
       ImmutableList<Annotation> annotations =
           ImmutableList.copyOf(producer.getParameterAnnotations()[i]);
       Key<?> dependencyKey = producerKeyForParameterType(genericType, annotations);
-      dependencyKeys.add(dependencyKey);
 
+      // Try to find a producer which produces this key straight-up.
       Method dependencyProducer = producers.get(dependencyKey);
-      if (dependencyProducer == null) {
-        // There is no known producer for this key, callers must provide it as input.
-        explicitInputs.add(dependencyKey);
-      } else {
-        addDependencies(dependencyProducer, dependencies, explicitInputs);
+      if (dependencyProducer != null) {
+        Node<?> depNode = addNode(dependencyProducer, nodes, explicitInputs);
+        directDependencies.add(depNode);
+        continue;
       }
+
+      // Try to resolve a bunch of producers which produce elements into this set.
+      Collection<Method> elementProducers = setProducers.get(dependencyKey);
+      if (genericType.getRawType().equals(ImmutableSet.class) && !elementProducers.isEmpty()) {
+        // TODO(dino): Finish this...
+        // - Add a compute node each for the setProducers.
+        // - Add a single node which aggregates the results into a set.
+        throw new NotImplementedException();
+      }
+
+      // At this point, our only option is to expect a value for this key as input to the graph.
+      Node<?> constantNode = Node.createConstantNode();
+      nodes.put(dependencyKey, constantNode);
+      explicitInputs.put(dependencyKey, constantNode);
+      directDependencies.add(constantNode);
     }
 
-
-
-
-
-
-    // TODO: plan:
-    // - make it possible to create constant nodes without their values
-    // - make addInput just set the future on the corresponding constant node
-    // - turn node into an interface
-    // - introduce special nodes which compute the aggregate into "set" and "map"
-    // - when setting up the graph, add a special case for set types which adds multiple nodes rather than just one
-
-
-
-    // Rationale: for output ImmutableSet<Foo>, cannot identify dependency nodes by key alone, must
-    // be node itself. also, constant nodes need to be able to feed into sets/maps
-
-
-
-
-
-
-
-    // Add the current node.
-    dependencies.put(
-        currentKey, Node.createComputedNode(currentKey, producer, dependencyKeys.build()));
+    // Create a node for this producer, wiring up its direct dependencies.
+    Node<?> currentNode = Node.createComputedNode(producer, directDependencies.build());
+    nodes.put(currentKey, currentNode);
+    return currentNode;
   }
 
-  private static ImmutableMap<Key<?>, Method> computeProducerMap(ImmutableList<Class<?>> classes) {
-    Map<Key<?>, Method> producers = new HashMap<>();
+  private static void computeProducerMap(
+      ImmutableList<Class<?>> classes,
+      Map<Key<?>, Method> producers,
+      Multimap<Key<?>, Method> setProducers) {
     for (Class<?> clazz : classes) {
       for (Method method : clazz.getDeclaredMethods()) {
         if (!Modifier.isStatic(method.getModifiers())) {
           throw new IllegalArgumentException("Cannot have non-static producer: " + method);
         }
-        if (!method.isAnnotationPresent(Produces.class)) {
-          continue;
+
+        // Check for regular producer.
+        if (method.isAnnotationPresent(Produces.class)) {
+          Key<?> key = producerKeyForReturnType(method);
+          if (producers.containsKey(key)) {
+            Method existing = producers.get(key);
+            throw new IllegalArgumentException(String.format(
+                "Already have producer [%s] for key [%s]. Cannot add new producer [%s]",
+                existing.getName(), key, method.getName()));
+          }
+          producers.put(key, method);
         }
 
-        Key<?> key = producerKeyForReturnType(method);
-        if (producers.containsKey(key)) {
-          Method existing = producers.get(key);
-          throw new IllegalArgumentException(String.format(
-              "Already have producer [%s] for key [%s]. Cannot add new producer [%s]",
-              existing.getName(), key, method.getName()));
+        // Check for set producer.
+        if (method.isAnnotationPresent(ProducesIntoSet.class)) {
+          Key<?> key = producerKeyForReturnType(method);
+          setProducers.put(key, method);
         }
-        producers.put(key, method);
       }
     }
-    return ImmutableMap.copyOf(producers);
   }
 
   /** Returns the {@link Key} representing the return type of the supplied method. */
