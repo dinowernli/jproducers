@@ -10,8 +10,8 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 /** Holds the execution state of a single producer in a specific graph execution. */
 class Node<T> {
@@ -37,10 +37,12 @@ class Node<T> {
     return new Node<>(Optional.of(producer), dependencies);
   }
 
-  public static <T> ImmutableSet<T> produceSet(T... values) {
-    return ImmutableSet.<T>builder()
-        .addAll(Arrays.asList(values))
-        .build();
+  public static <T> ImmutableSet<T> produceSet(Present<T>... values) throws ExecutionException {
+    ImmutableSet.Builder<T> resultBuilder = ImmutableSet.builder();
+    for (Present<T> value : values) {
+      resultBuilder.add(value.get());
+    }
+    return resultBuilder.build();
   }
 
   private Node(Optional<Method> producer, ImmutableList<Node<?>> dependencies) {

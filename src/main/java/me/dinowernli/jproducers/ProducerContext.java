@@ -11,9 +11,9 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 import me.dinowernli.jproducers.Annotations.Produces;
 import me.dinowernli.jproducers.Annotations.ProducesIntoSet;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -23,9 +23,7 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -120,12 +118,34 @@ public class ProducerContext {
       }
 
       // Try to resolve a bunch of producers which produce elements into this set.
-      Collection<Method> elementProducers = setProducers.get(dependencyKey);
-      if (genericType.getRawType().equals(ImmutableSet.class) && !elementProducers.isEmpty()) {
-        // TODO(dino): Finish this...
-        // - Add a compute node each for the setProducers.
-        // - Add a single node which aggregates the results into a set.
-        throw new NotImplementedException();
+      TypeLiteral<?> dependencyType = dependencyKey.getTypeLiteral();
+      if (dependencyType.getRawType().equals(ImmutableSet.class)) {
+        // Construct a key for the individual elements.
+        Type elementType = genericType.getActualTypeArguments()[0];
+        Key elementKey;
+        if (dependencyKey.getAnnotation() == null) {
+          elementKey = Key.get(elementType);
+        } else {
+          elementKey = Key.get(elementType, dependencyKey.getAnnotation());
+        }
+
+        // Find all the producers.
+        Collection<Method> elementProducers = setProducers.get(elementKey);
+        if (!elementProducers.isEmpty()) {
+          // Add a compute node for each element.
+          ImmutableList.Builder<Node<?>> elementNodes = ImmutableList.builder();
+          for (Method elementProducer : elementProducers) {
+            // TODO(dino): Can't add the node to the nodes of the graph because there is no key to
+            // identify them by... Investigate replacing the map with a list.
+            Node<?> elementNode = addNode(elementProducer, nodes, explicitInputs);
+            elementNodes.add(elementNode);
+          }
+
+          // Add a special compute node which assembles the elements.
+          Node<?> assemblyNode = Node.createSetAssemblyNode(elementNodes.build());
+          nodes.put(dependencyKey, assemblyNode);
+          directDependencies.add(assemblyNode);
+        }
       }
 
       // At this point, our only option is to expect a value for this key as input to the graph.
