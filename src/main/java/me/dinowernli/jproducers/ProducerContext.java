@@ -75,7 +75,7 @@ public class ProducerContext {
   public <T> Graph<T> newGraph(Key<T> key) {
     HashMap<Key<?>, Node<?>> nodes = new HashMap<>();
     HashMap<Key<?>, Node<?>> explicitInputs = new HashMap<>();
-    addNode(producers.get(key), nodes, explicitInputs);
+    addNode(producers.get(key), true /* expectUnique */, nodes, explicitInputs);
 
     return new Graph<>(executor, nodes, explicitInputs, key);
   }
@@ -93,6 +93,7 @@ public class ProducerContext {
    */
   private Node<?> addNode(
       Method producer,
+      boolean expectUnique,
       HashMap<Key<?>, Node<?>> nodes,
       HashMap<Key<?>, Node<?>> explicitInputs) {
 
@@ -100,7 +101,7 @@ public class ProducerContext {
     // add a node which outputs that type.
 
     Key<?> currentKey = producerKeyForReturnType(producer);
-    if (nodes.containsKey(currentKey)) {
+    if (nodes.containsKey(currentKey) && expectUnique) {
       return nodes.get(currentKey);
     }
 
@@ -116,7 +117,7 @@ public class ProducerContext {
       // Try to find a producer which produces this key straight-up.
       Method dependencyProducer = producers.get(dependencyKey);
       if (dependencyProducer != null) {
-        Node<?> depNode = addNode(dependencyProducer, nodes, explicitInputs);
+        Node<?> depNode = addNode(dependencyProducer, true /* expectUnique */, nodes, explicitInputs);
         directDependencies.add(depNode);
         continue;
       }
@@ -141,7 +142,7 @@ public class ProducerContext {
           for (Method elementProducer : elementProducers) {
             // TODO(dino): Can't add the node to the nodes of the graph because there is no key to
             // identify them by... Investigate replacing the map with a list.
-            Node<?> elementNode = addNode(elementProducer, nodes, explicitInputs);
+            Node<?> elementNode = addNode(elementProducer, false /* expectUnique */, nodes, explicitInputs);
             elementNodes.add(elementNode);
           }
 
