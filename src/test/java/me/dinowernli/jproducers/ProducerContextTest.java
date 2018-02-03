@@ -8,6 +8,7 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import me.dinowernli.jproducers.Annotations.Produces;
+import me.dinowernli.jproducers.Annotations.ProducesIntoSet;
 import me.dinowernli.jproducers.ProducerContextTest.FutureFakeProducerModule.Bar;
 import me.dinowernli.junit.TestClass;
 import org.junit.Test;
@@ -100,5 +101,32 @@ public class ProducerContextTest {
     ListenableFuture<Integer> result = context.newGraph(Integer.class).run();
     assertThat(result.isDone()).isTrue();
     result.get();
+  }
+
+  static class CollectionProducer {
+    @ProducesIntoSet
+    static String produceSomeString() {
+      return "foo";
+    }
+
+    @ProducesIntoSet
+    static ListenableFuture<String> produceOtherString() {
+      return Futures.immediateFuture("bar");
+    }
+
+    @Produces
+    static ImmutableList<String> produceList(Present<ImmutableSet<String>> strings)
+        throws Throwable {
+      return ImmutableList.copyOf(strings.get());
+    }
+  }
+
+  @Test
+  public void testCollectionProducer() throws Throwable {
+    ProducerContext context = ProducerContext.createForTesting(CollectionProducer.class);
+    ListenableFuture<ImmutableList<String>> result = context.newGraph(
+        Key.get(new TypeLiteral<ImmutableList<String>>() {})).run();
+    assertThat(result.isDone()).isTrue();
+    assertThat(result.get()).containsExactly("foo", "bar");
   }
 }

@@ -1,12 +1,23 @@
 package me.dinowernli.jproducers;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 class Types {
+  /**
+   * Takes a key representing a collection and returns a key for an individual element of the
+   * collection. For instance, if passed "@Foo ImmutableSet<String>", this returns "@Foo String".
+   */
+  public static Type elementType(Type collectionType) {
+    ParameterizedType collectionParamType = (ParameterizedType) collectionType;
+    return collectionParamType.getActualTypeArguments()[0];
+  }
+
   /**
    * Extracts the actual type produced by the given producer.
    */

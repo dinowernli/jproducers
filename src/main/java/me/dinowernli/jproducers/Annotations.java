@@ -15,4 +15,9 @@ public class Annotations {
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface Produces {}
+
+  /** Identifies a producer method which contirbutes to producing a set of values. */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface ProducesIntoSet {}
 }
