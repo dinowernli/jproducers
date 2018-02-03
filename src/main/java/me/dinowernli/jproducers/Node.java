@@ -65,34 +65,14 @@ class Node<T> {
     Object output;
     try {
       if (producer.get().equals(SET_PRODUCER)) {
-        // TODO(dino): Not exactly pretty...
-
-
-        // TODO: clean this up.
-
-
-
-
-
-
-
         Present<String>[] presents = new Present[arguments.length];
         for (int i = 0; i < arguments.length; ++i) {
           presents[i] = (Present) arguments[i];
         }
-
-        Object[] w = new Object[1];
-        w[0] = presents;
-
-        output = producer.get().invoke(null /* receiver */, w);
+        output = producer.get().invoke(null /* receiver */, new Object[]{presents});
       } else {
         output = producer.get().invoke(null /* receiver */, arguments);
       }
-
-
-//      output = producer.get().invoke(null /* receiver */, arguments);
-
-
     } catch (Throwable t) {
       acceptError(new RuntimeException("Unable to execute producer", t));
       return;
