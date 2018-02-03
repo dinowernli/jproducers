@@ -75,7 +75,7 @@ public class ProducerContext {
   public <T> Graph<T> newGraph(Key<T> key) {
     HashMap<Key<?>, Node<?>> nodes = new HashMap<>();
     HashMap<Key<?>, Node<?>> explicitInputs = new HashMap<>();
-    Node<T> root = addNode(producers.get(key), true /* expectUnique */, nodes, explicitInputs);
+    Node<T> root = addNodes(key, nodes, explicitInputs);
     return new Graph<>(executor, root, ImmutableMap.copyOf(explicitInputs));
   }
 
@@ -85,85 +85,78 @@ public class ProducerContext {
   }
 
   /**
-   * Creates a node for the supplied producer and returns it.
-   *
-   * This method recursively creates nodes for all dependencies of the supplied producer and adds
-   * them to the "nodes" and "explicitInputs" maps.
+   * Creates a node that satisfies the supplied key and returns it. Recursively creates all
+   * dependency nodes of the created node.
    */
-  private <T> Node<T> addNode(
-      Method producer,
-      boolean expectUnique,
+  private <T> Node<T> addNodes(
+      Key<T> key,
       HashMap<Key<?>, Node<?>> nodes,
       HashMap<Key<?>, Node<?>> explicitInputs) {
-
-    // TODO(dino): Change this signature to take a type rather than a producer. This method should
-    // add a node which outputs that type.
-
-    Key<?> currentKey = producerKeyForReturnType(producer);
-    if (nodes.containsKey(currentKey) && expectUnique) {
-      return (Node<T>) nodes.get(currentKey);
+    if (nodes.containsKey(key)) {
+      return (Node<T>) nodes.get(key);
     }
 
-    // Resolve all the dependencies of this producer.
+    // Try to find a producer which produces this key straight-up.
+    Method producer = producers.get(key);
+    if (producer != null) {
+      Node<?> node = addProducerNode(producer, nodes, explicitInputs);
+      nodes.put(key, node);
+      return (Node<T>) node;
+    }
+
+    // Try to resolve a bunch of producers which produce elements into this set.
+    if (key.getTypeLiteral().getRawType().equals(ImmutableSet.class)) {
+      ParameterizedType type = (ParameterizedType) key.getTypeLiteral().getType();
+
+      // Construct a key for the individual elements.
+      Type elementType = type.getActualTypeArguments()[0];
+      Key elementKey;
+      if (key.getAnnotation() == null) {
+        elementKey = Key.get(elementType);
+      } else {
+        elementKey = Key.get(elementType, key.getAnnotation());
+      }
+
+      // Find all the producers.
+      Collection<Method> elementProducers = setProducers.get(elementKey);
+      if (!elementProducers.isEmpty()) {
+        // Add a compute node for each element.
+        ImmutableList.Builder<Node<?>> elementNodes = ImmutableList.builder();
+        for (Method elementProducer : elementProducers) {
+          // TODO(dino): Can't add the node to the nodes of the graph because there is no key to
+          // identify them by... Investigate replacing the map with a list.
+          Node<?> elementNode = addProducerNode(elementProducer, nodes, explicitInputs);
+          elementNodes.add(elementNode);
+        }
+
+        // Add a special compute node which assembles the elements.
+        Node<?> assemblyNode = Node.createSetAssemblyNode(elementNodes.build());
+        nodes.put(key, assemblyNode);
+        return (Node<T>) assemblyNode;
+      }
+    }
+
+    // At this point, our only option is to expect a value for this key as input to the graph.
+    Node<T> constantNode = Node.createConstantNode();
+    nodes.put(key, constantNode);
+    explicitInputs.put(key, constantNode);
+    return constantNode;
+  }
+
+  private Node<?> addProducerNode(
+      Method producer,
+      HashMap<Key<?>, Node<?>> nodes,
+      HashMap<Key<?>, Node<?>> explicitInputs) {
     ImmutableList.Builder<Node<?>> directDependencies = ImmutableList.builder();
     for (int i = 0; i < producer.getGenericParameterTypes().length; ++i) {
       ParameterizedType genericType = (ParameterizedType) producer.getGenericParameterTypes()[i];
-      Type presentType = genericType.getActualTypeArguments()[0];  // TODO(dino): support non-present.
       ImmutableList<Annotation> annotations =
           ImmutableList.copyOf(producer.getParameterAnnotations()[i]);
       Key<?> dependencyKey = producerKeyForParameterType(genericType, annotations);
-
-      // Try to find a producer which produces this key straight-up.
-      Method dependencyProducer = producers.get(dependencyKey);
-      if (dependencyProducer != null) {
-        Node<?> depNode = addNode(dependencyProducer, true /* expectUnique */, nodes, explicitInputs);
-        directDependencies.add(depNode);
-        continue;
-      }
-
-      // Try to resolve a bunch of producers which produce elements into this set.
-      if (presentType instanceof ParameterizedType
-          && ((ParameterizedType) presentType).getRawType().equals(ImmutableSet.class)) {
-        // Construct a key for the individual elements.
-        Type elementType = ((ParameterizedType) presentType).getActualTypeArguments()[0];
-        Key elementKey;
-        if (dependencyKey.getAnnotation() == null) {
-          elementKey = Key.get(elementType);
-        } else {
-          elementKey = Key.get(elementType, dependencyKey.getAnnotation());
-        }
-
-        // Find all the producers.
-        Collection<Method> elementProducers = setProducers.get(elementKey);
-        if (!elementProducers.isEmpty()) {
-          // Add a compute node for each element.
-          ImmutableList.Builder<Node<?>> elementNodes = ImmutableList.builder();
-          for (Method elementProducer : elementProducers) {
-            // TODO(dino): Can't add the node to the nodes of the graph because there is no key to
-            // identify them by... Investigate replacing the map with a list.
-            Node<?> elementNode = addNode(elementProducer, false /* expectUnique */, nodes, explicitInputs);
-            elementNodes.add(elementNode);
-          }
-
-          // Add a special compute node which assembles the elements.
-          Node<?> assemblyNode = Node.createSetAssemblyNode(elementNodes.build());
-          nodes.put(dependencyKey, assemblyNode);
-          directDependencies.add(assemblyNode);
-          continue;
-        }
-      }
-
-      // At this point, our only option is to expect a value for this key as input to the graph.
-      Node<?> constantNode = Node.createConstantNode();
-      nodes.put(dependencyKey, constantNode);
-      explicitInputs.put(dependencyKey, constantNode);
-      directDependencies.add(constantNode);
+      Node<?> dependencyNode = addNodes(dependencyKey, nodes, explicitInputs);
+      directDependencies.add(dependencyNode);
     }
-
-    // Create a node for this producer, wiring up its direct dependencies.
-    Node<?> currentNode = Node.createComputedNode(producer, directDependencies.build());
-    nodes.put(currentKey, currentNode);
-    return (Node<T>) currentNode;
+    return Node.createComputedNode(producer, directDependencies.build());
   }
 
   private static void computeProducerMap(
