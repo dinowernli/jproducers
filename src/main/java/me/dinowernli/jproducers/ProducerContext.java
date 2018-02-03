@@ -75,9 +75,8 @@ public class ProducerContext {
   public <T> Graph<T> newGraph(Key<T> key) {
     HashMap<Key<?>, Node<?>> nodes = new HashMap<>();
     HashMap<Key<?>, Node<?>> explicitInputs = new HashMap<>();
-    addNode(producers.get(key), true /* expectUnique */, nodes, explicitInputs);
-
-    return new Graph<>(executor, nodes, explicitInputs, key);
+    Node<T> root = addNode(producers.get(key), true /* expectUnique */, nodes, explicitInputs);
+    return new Graph<>(executor, root, ImmutableMap.copyOf(explicitInputs));
   }
 
   /** Returns the set of keys for which graphs can be created. */
@@ -91,7 +90,7 @@ public class ProducerContext {
    * This method recursively creates nodes for all dependencies of the supplied producer and adds
    * them to the "nodes" and "explicitInputs" maps.
    */
-  private Node<?> addNode(
+  private <T> Node<T> addNode(
       Method producer,
       boolean expectUnique,
       HashMap<Key<?>, Node<?>> nodes,
@@ -102,7 +101,7 @@ public class ProducerContext {
 
     Key<?> currentKey = producerKeyForReturnType(producer);
     if (nodes.containsKey(currentKey) && expectUnique) {
-      return nodes.get(currentKey);
+      return (Node<T>) nodes.get(currentKey);
     }
 
     // Resolve all the dependencies of this producer.
@@ -164,7 +163,7 @@ public class ProducerContext {
     // Create a node for this producer, wiring up its direct dependencies.
     Node<?> currentNode = Node.createComputedNode(producer, directDependencies.build());
     nodes.put(currentKey, currentNode);
-    return currentNode;
+    return (Node<T>) currentNode;
   }
 
   private static void computeProducerMap(

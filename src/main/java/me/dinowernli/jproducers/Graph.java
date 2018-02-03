@@ -1,33 +1,32 @@
 package me.dinowernli.jproducers;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Key;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /** Represents a single execution of a graph for a specific output type. */
 public class Graph<T> {
   private final ExecutorService executor;
-  private final HashMap<Key<?>, Node<?>> nodes;
+
+  /** The root node of this graph. */
+  private final Node<T> root;
 
   /** Maps expected explicit input keys to whether an input has actually been provided. */
-  private final HashMap<Key<?>, Node<?>> explicitInputs;
-
-  private final Key<T> outputKey;
+  private final ImmutableMap<Key<?>, Node<?>> explicitInputs;
 
   Graph(
       ExecutorService executor,
-      HashMap<Key<?>, Node<?>> nodes,
-      HashMap<Key<?>, Node<?>> explicitInputs,
-      Key<T> outputKey) {
+      Node<T> root,
+      ImmutableMap<Key<?>, Node<?>> explicitInputs) {
     this.executor = executor;
-    this.nodes = nodes;
+    this.root = root;
     this.explicitInputs = explicitInputs;
-    this.outputKey = outputKey;
   }
 
   public <I> Graph<T> addInput(Key<I> key, I value) {
@@ -50,7 +49,7 @@ public class Graph<T> {
             new RuntimeException("Missing input for key: " + explicitInput.getKey()));
       }
     }
-    return (ListenableFuture<T>) processNode(nodes.get(outputKey));
+    return processNode(root);
   }
 
   /**
