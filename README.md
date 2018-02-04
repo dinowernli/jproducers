@@ -51,9 +51,7 @@ Producers may have arguments, which `jproducers` uses to determine which other p
 
 ## Return types
 
-The return type of a producer method determines the produced type. If a producer returns a `ListenableFuture`, the library takes care of waiting for the future before invoking downstream producers.
-
-The following producers all have produced type `@Bar String`:
+The return type of a producer method determines the produced type. If a producer returns a `ListenableFuture`, the library takes care of waiting for the future before invoking downstream producers. The following producers all have produced type `@Bar String`:
 
 ```java
 @Produces
@@ -86,7 +84,7 @@ static long produceNumUsers(Present<UserInfoResponse> response) {
 
 ## Set producers
 
-It is possible to use `@ProducersIntoSet` to declare that a producer produces and element in a set of values:
+It is possible to use `@ProducesIntoSet` to declare that a producer produces and element in a set of values:
 
 ```java
 @ProducesIntoSet
