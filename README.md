@@ -55,7 +55,18 @@ The return type of a producer method determines the produced type. If a producer
 
 ## Error propagation
 
-A producer can indicate failure by throwing and exception (or returning a failed future). If this happens, downstream producers are passed an instance of `Present` containing the error. This allows errors to be propagated throughout a producer graph.
+A producer can indicate failure by throwing an exception (or returning a failed future). If this happens, downstream producers are passed an instance of `Present` containing the error. This allows errors to be propagated throughout a producer graph.
+
+```java
+@Produces
+static long produceNumUsers(Present<UserInfoResponse> response) {
+  try {
+    return response.get().getNumUsers();
+  } catch (ExecutionException e) {
+    throw new RuntimeException("User info rpc failed", e);
+  }
+}
+```
 
 ## Set producers
 
