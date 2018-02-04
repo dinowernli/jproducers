@@ -53,6 +53,20 @@ Producers may have arguments, which `jproducers` uses to determine which other p
 
 The return type of a producer method determines the produced type. If a producer returns a `ListenableFuture`, the library takes care of waiting for the future before invoking downstream producers.
 
+The following producers all have produced type `@Bar String`:
+
+```java
+@Produces
+@Bar
+static ListenableFuture<String> produceAsyncBar() {
+}
+
+@Produces
+@Bar
+static String produceBar() {
+}
+```
+
 ## Error propagation
 
 A producer can indicate failure by throwing an exception (or returning a failed future). If this happens, downstream producers are passed an instance of `Present` containing the error. This allows errors to be propagated throughout a producer graph.
