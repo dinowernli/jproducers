@@ -59,11 +59,13 @@ The following producers all have produced type `@Bar String`:
 @Produces
 @Bar
 static ListenableFuture<String> produceAsyncBar() {
+  return Futures.immediateFailedFuture(new RuntimeException("failed!"));
 }
 
 @Produces
 @Bar
 static String produceBar() {
+  return "hello world";
 }
 ```
 
