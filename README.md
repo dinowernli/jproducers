@@ -88,12 +88,14 @@ It is possible to use `@ProducesIntoSet` to declare that a producer produces and
 
 ```java
 @ProducesIntoSet
-static UserDetailsRequest produceOwnerDetailsRequest(Present<Long> ownerId) throws ExecutionException {
+static UserDetailsRequest produceOwnerDetailsRequest(Present<Long> ownerId)
+    throws ExecutionException {
   return new UserDetailsRequest(ownerId.get());
 }
 
 @ProducesIntoSet
-static UserDetailsRequest producerOtherDetailsRequest(Present<String> username) throws ExecutionException {
+static UserDetailsRequest producerOtherDetailsRequest(Present<String> username)
+    throws ExecutionException {
   return new UserDetailsRequest(username.get());
 }
 ```
